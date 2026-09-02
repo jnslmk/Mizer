@@ -27,8 +27,10 @@ impl<'a> Command<'a> for ConfigureSacnOutputCommand {
         let output = dmx_manager
             .get_output(&self.id)
             .ok_or_else(|| anyhow::anyhow!("Unknown output {}", self.id))?;
-        if let DmxOutputConnection::Sacn(_) = output {
-            let new_output = SacnOutput::new(Some(self.priority));
+        if let DmxOutputConnection::Sacn(existing) = output {
+            // The UI cannot set a host yet, so keep the existing one rather than
+            // silently resetting a YAML-configured unicast output to multicast.
+            let new_output = SacnOutput::new(Some(self.priority), existing.host.clone());
             let output = dmx_manager.delete_output(&self.id).unwrap();
             let output = if let DmxOutputConnection::Sacn(output) = output {
                 output

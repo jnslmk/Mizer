@@ -1384,7 +1384,7 @@ checksum = "d38f2da7a0a2c4ccf0065be06397cc26a81f4e528be095826eee9d4adbb8c60f"
 dependencies = [
  "byteorder",
  "fnv",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -2419,7 +2419,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
 dependencies = [
  "serde",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -3670,12 +3670,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
-name = "fuchsia-cprng"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
-
-[[package]]
 name = "futures"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3983,7 +3977,7 @@ dependencies = [
  "fnv",
  "gilrs-core",
  "log",
- "uuid 1.19.0",
+ "uuid",
  "vec_map",
 ]
 
@@ -4001,7 +3995,7 @@ dependencies = [
  "nix 0.30.1",
  "objc2-core-foundation",
  "objc2-io-kit",
- "uuid 1.19.0",
+ "uuid",
  "vec_map",
  "wasm-bindgen",
  "web-sys",
@@ -6190,7 +6184,7 @@ dependencies = [
  "g13",
  "pinboard",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -6321,7 +6315,7 @@ dependencies = [
  "mizer-util",
  "pinboard",
  "serde",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -6365,7 +6359,7 @@ dependencies = [
  "test-case",
  "tokio",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -6692,7 +6686,7 @@ dependencies = [
  "spectral",
  "test-case",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -6816,7 +6810,7 @@ dependencies = [
  "profiling",
  "tokio",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -7041,7 +7035,7 @@ dependencies = [
  "serde",
  "test-case",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -7164,7 +7158,7 @@ dependencies = [
  "profiling",
  "serde",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -7254,7 +7248,7 @@ dependencies = [
  "pinboard",
  "tracing",
  "traktor-kontrol-x1",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -7352,7 +7346,7 @@ dependencies = [
  "test-case",
  "tracing",
  "tracy-client 0.17.6",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -7452,7 +7446,7 @@ dependencies = [
  "profiling",
  "raw-window-handle",
  "tracing",
- "uuid 1.19.0",
+ "uuid",
  "weak-table",
  "wgpu",
  "winit",
@@ -7759,17 +7753,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys",
-]
-
-[[package]]
-name = "net2"
-version = "0.2.39"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b13b648036a2339d06de780866fbdfda0dde886de7b3af2ddeba8b14f4ee34ac"
-dependencies = [
- "cfg-if 0.1.10",
- "libc",
- "winapi",
 ]
 
 [[package]]
@@ -9391,19 +9374,6 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "rand"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "552840b97013b1a26992c11eac34bdd778e464601a4c2054b5f0bff7c6761293"
-dependencies = [
- "fuchsia-cprng",
- "libc",
- "rand_core 0.3.1",
- "rdrand",
- "winapi",
-]
-
-[[package]]
-name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
@@ -9442,21 +9412,6 @@ dependencies = [
  "ppv-lite86",
  "rand_core 0.9.5",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a6fdeb83b075e8266dcc8762c22776f6877a63111121f5f8c7411e5be7eed4b"
-dependencies = [
- "rand_core 0.4.2",
-]
-
-[[package]]
-name = "rand_core"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c33a3c44ca05fa6f1807d8e6743f3824e8509beca625669633be0acbdf509dc"
 
 [[package]]
 name = "rand_core"
@@ -9569,15 +9524,6 @@ name = "rb"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56cf8381505b60ae18a4097f1d0be093287ca3bf4fbb23d36ac5ad3bba335daa"
-
-[[package]]
-name = "rdrand"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
-dependencies = [
- "rand_core 0.3.1",
-]
 
 [[package]]
 name = "read-fonts"
@@ -10049,13 +9995,15 @@ checksum = "a50f4cf475b65d88e057964e0e9bb1f0aa9bbb2036dc65c64596b42932536984"
 
 [[package]]
 name = "sacn"
-version = "0.4.4"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9611d2808519c887dde3bd2515bc370f179cf49e3dca0e16b05e3ce213c00cf"
+checksum = "5fa6b27099bea4cf80b420fe02b1e2101721b1e13197e0a34a9f3811dd26d63f"
 dependencies = [
  "byteorder",
- "net2",
- "uuid 0.6.5",
+ "libc",
+ "socket2 0.6.1",
+ "thiserror 2.0.17",
+ "uuid",
 ]
 
 [[package]]
@@ -10283,7 +10231,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "url",
- "uuid 1.19.0",
+ "uuid",
 ]
 
 [[package]]
@@ -12170,16 +12118,6 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1436e58182935dcd9ce0add9ea0b558e8a87befe01c1a301e6020aeb0876363"
-dependencies = [
- "cfg-if 0.1.10",
- "rand 0.4.6",
-]
-
-[[package]]
-name = "uuid"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2e054861b4bd027cd373e18e8d8d8e6548085000e41290d95ce0c373a654b4a"
@@ -13952,7 +13890,7 @@ dependencies = [
  "serde_repr",
  "tracing",
  "uds_windows",
- "uuid 1.19.0",
+ "uuid",
  "windows-sys 0.61.2",
  "winnow 1.0.4",
  "zbus_macros 5.18.0",

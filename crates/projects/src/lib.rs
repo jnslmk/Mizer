@@ -227,6 +227,9 @@ pub struct ConnectionConfig {
 pub enum ConnectionTypes {
     Sacn {
         priority: Option<u8>,
+        /// Optional unicast destination; multicast when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<String>,
     },
     #[serde(alias = "artnet")]
     ArtnetOutput {
@@ -259,6 +262,44 @@ mod tests {
         assert_eq!(result.channels.len(), 0, "no channels");
         assert_eq!(result.fixtures.len(), 0, "no fixtures");
         Ok(())
+    }
+
+    #[test]
+    fn sacn_connection_without_host_loads_as_multicast() {
+        let config: ConnectionConfig =
+            serde_yaml::from_str("id: dmx-0\nname: sACN\ntype: sacn\npriority: 100\n").unwrap();
+
+        assert_eq!(
+            config.config,
+            ConnectionTypes::Sacn {
+                priority: Some(100),
+                host: None
+            }
+        );
+
+        let serialized = serde_yaml::to_string(&config).unwrap();
+        assert!(
+            !serialized.contains("host"),
+            "multicast config must not serialize a host"
+        );
+    }
+
+    #[test]
+    fn sacn_connection_host_round_trips() {
+        let config: ConnectionConfig =
+            serde_yaml::from_str("id: dmx-0\nname: sACN\ntype: sacn\nhost: 192.168.1.243\n")
+                .unwrap();
+
+        assert_eq!(
+            config.config,
+            ConnectionTypes::Sacn {
+                priority: None,
+                host: Some("192.168.1.243".into())
+            }
+        );
+
+        let serialized = serde_yaml::to_string(&config).unwrap();
+        assert!(serialized.contains("host: 192.168.1.243"));
     }
 
     #[test]
