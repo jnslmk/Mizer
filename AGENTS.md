@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues live as GitHub issues on the fork `jnslmk/Mizer` (this repo's `origin` is the upstream `maxjoehnk/Mizer`; always pass `-R jnslmk/Mizer`). See `docs/agents/issue-tracker.md`.
+Issues live as GitHub issues on the fork `jnslmk/Mizer` (this repo's `origin` remote; `upstream` is the original `maxjoehnk/Mizer`). Always pass `-R jnslmk/Mizer`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

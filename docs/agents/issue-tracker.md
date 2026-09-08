@@ -2,7 +2,7 @@
 
 Issues and specs for this repo live as GitHub issues on **jnslmk/Mizer** (fork of `maxjoehnk/Mizer`). Use the `gh` CLI for all operations.
 
-> Tracker repo: `jnslmk/Mizer`. The repo's `origin` remote points at the upstream `maxjoehnk/Mizer`, so always pass `-R jnslmk/Mizer` to `gh` commands; never let it infer from `origin`.
+> Tracker repo: `jnslmk/Mizer` (this repo's `origin` remote). `upstream` (`maxjoehnk/Mizer`) is the original repo, fetch-only. Always pass `-R jnslmk/Mizer` to `gh` commands.
 
 ## Conventions
 
