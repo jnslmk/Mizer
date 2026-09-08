@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:mizer/api/plugin/ffi/layout.dart';
 import 'package:mizer/protos/layouts.pb.dart' hide Color;
 import 'package:mizer/views/layout/shared_ticker.dart';
 import 'package:mizer/widgets/grid/grid_tile.dart';
 import 'package:mizer/widgets/high_contrast_text.dart';
 
 class LabelControl extends StatefulWidget {
-  final LayoutsRefPointer pointer;
   final LayoutControl control;
   final Color? color;
 
   const LabelControl({
-    required this.pointer,
     required this.control,
     required this.color,
     Key? key,

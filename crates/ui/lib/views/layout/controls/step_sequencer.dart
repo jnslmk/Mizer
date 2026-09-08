@@ -2,7 +2,6 @@ import 'package:collection/collection.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mizer/api/contracts/nodes.dart';
-import 'package:mizer/api/plugin/ffi/layout.dart';
 import 'package:mizer/consts.dart';
 import 'package:mizer/protos/layouts.pb.dart' hide Color;
 import 'package:mizer/protos/nodes.pb.dart';
@@ -11,13 +10,11 @@ import 'package:mizer/widgets/inputs/button.dart';
 import 'package:provider/provider.dart';
 
 class StepSequencerControl extends StatefulWidget {
-  final LayoutsRefPointer pointer;
   final LayoutControl control;
   final Color? color;
   final ControlSize? size;
 
   const StepSequencerControl({
-    required this.pointer,
     required this.control,
     required this.color,
     this.size,

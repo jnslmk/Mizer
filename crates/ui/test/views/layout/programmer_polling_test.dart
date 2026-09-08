@@ -1,7 +1,7 @@
 import 'package:mizer/api/contracts/programmer.dart';
 import 'package:mizer/api/plugin/ffi/layout.dart';
 import 'package:mizer/views/layout/shared_ticker.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 class _FakeLayoutSource implements LayoutValuesSource {
   @override

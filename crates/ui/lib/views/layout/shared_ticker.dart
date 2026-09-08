@@ -60,6 +60,9 @@ class LayoutControlValue {
         beat: raw.beat,
       );
 
+  // Exact double equality is deliberate: any bit difference from the last
+  // FFI read is a real change worth notifying for. NaN != NaN, so a NaN
+  // value notifies on every tick instead of settling.
   @override
   bool operator ==(Object other) =>
       other is LayoutControlValue &&
@@ -102,8 +105,8 @@ class LayoutPollingScope extends StatefulWidget {
 
 class _LayoutPollingScopeState extends State<LayoutPollingScope>
     with SingleTickerProviderStateMixin {
-  late LayoutPolling _polling = LayoutPolling(widget.source);
-  late Ticker _ticker;
+  late final LayoutPolling _polling = LayoutPolling(widget.source);
+  late final Ticker _ticker;
 
   @override
   void initState() {

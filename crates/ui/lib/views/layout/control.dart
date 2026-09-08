@@ -135,25 +135,24 @@ class _LayoutControlViewState extends State<LayoutControlView> {
       );
     }
     if (node?.type == "fader") {
-      return FaderControl(pointer: widget.pointer, control: widget.control, color: _color);
+      return FaderControl(control: widget.control, color: _color);
     } else if (node?.type == "dial") {
-      return DialControl(pointer: widget.pointer, control: widget.control, color: _color);
+      return DialControl(control: widget.control, color: _color);
     } else if (node?.type == "button") {
       return ButtonControl(
-        pointer: widget.pointer,
         control: widget.control,
         color: _color,
         image: _image,
         size: widget.control.size,
       );
     } else if (node?.type == "label") {
-      return LabelControl(pointer: widget.pointer, control: widget.control, color: _color);
+      return LabelControl(control: widget.control, color: _color);
     } else if (node?.type == "timecode") {
       return TimecodeControl(pointer: widget.pointer, control: widget.control, color: _color);
     } else if (node?.type == "step-sequencer") {
-      return StepSequencerControl(pointer: widget.pointer, control: widget.control, color: _color);
+      return StepSequencerControl(control: widget.control, color: _color);
     } else if (node?.type == "level") {
-      return LevelControl(pointer: widget.pointer, control: widget.control, color: _color);
+      return LevelControl(control: widget.control, color: _color);
     }
     return null;
   }

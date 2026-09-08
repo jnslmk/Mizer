@@ -1,6 +1,6 @@
 import 'package:mizer/api/plugin/ffi/sequencer.dart';
 import 'package:mizer/views/layout/shared_ticker.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('polling is capped at 30fps', () {
