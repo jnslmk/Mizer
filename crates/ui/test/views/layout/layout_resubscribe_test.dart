@@ -1,7 +1,18 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mizer/api/contracts/programmer.dart';
 import 'package:mizer/api/plugin/ffi/layout.dart';
 import 'package:mizer/views/layout/shared_ticker.dart';
+import 'package:provider/provider.dart';
+
+class _NullProgrammerApi implements ProgrammerApi {
+  @override
+  Future<IProgrammerStatePointer?> getProgrammerPointer() =>
+      Future.value(null);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _FakeSource implements LayoutValuesSource {
   List<String> lastPaths = const [];
@@ -122,19 +133,25 @@ void main() {
   testWidgets('rebinding a state to a new path polls the new path',
       (tester) async {
     final source = _FakeSource();
-    await tester.pumpWidget(LayoutPollingScope(
-      source: source,
-      child: const Directionality(
-          textDirection: TextDirection.ltr, child: _Probe(path: 'old')),
+    await tester.pumpWidget(Provider<ProgrammerApi>.value(
+      value: _NullProgrammerApi(),
+      child: LayoutPollingScope(
+        source: source,
+        child: const Directionality(
+            textDirection: TextDirection.ltr, child: _Probe(path: 'old')),
+      ),
     ));
     LayoutPollingScope.of(tester.element(find.byType(_Probe)))
         .tick(const Duration(seconds: 1));
     expect(source.lastPaths, ['old']);
 
-    await tester.pumpWidget(LayoutPollingScope(
-      source: source,
-      child: const Directionality(
-          textDirection: TextDirection.ltr, child: _Probe(path: 'new')),
+    await tester.pumpWidget(Provider<ProgrammerApi>.value(
+      value: _NullProgrammerApi(),
+      child: LayoutPollingScope(
+        source: source,
+        child: const Directionality(
+            textDirection: TextDirection.ltr, child: _Probe(path: 'new')),
+      ),
     ));
     LayoutPollingScope.of(tester.element(find.byType(_Probe)))
         .tick(const Duration(seconds: 2));
