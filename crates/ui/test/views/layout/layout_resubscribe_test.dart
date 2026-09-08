@@ -6,6 +6,9 @@ import 'package:mizer/views/layout/shared_ticker.dart';
 class _FakeSource implements LayoutValuesSource {
   List<String> lastPaths = const [];
   int calls = 0;
+  final double value;
+
+  _FakeSource([this.value = 0]);
 
   @override
   List<LayoutReadValue> readLayoutValues(List<int> kinds, List<String> paths) {
@@ -13,8 +16,8 @@ class _FakeSource implements LayoutValuesSource {
     lastPaths = List.of(paths);
     return List.generate(
       paths.length,
-      (_) => const LayoutReadValue(
-        value: 0,
+      (_) => LayoutReadValue(
+        value: value,
         min: 0,
         max: 0,
         percentage: false,
@@ -84,6 +87,36 @@ void main() {
     polling.tick(const Duration(seconds: 2));
 
     expect(source.calls, 1);
+  });
+
+  test('subscriber immediately receives a pre-polled value', () {
+    final source = _FakeSource(0.75);
+    final polling = LayoutPolling(source);
+    polling.subscribe('fader', LayoutValueKind.fader);
+    polling.tick(Duration.zero);
+
+    LayoutControlValue? displayed;
+    late final LayoutSubscriber subscriber;
+    subscriber = LayoutSubscriber(
+      polling,
+      LayoutValueKind.fader,
+      () => displayed = subscriber.notifier!.value,
+    );
+    subscriber.resubscribe('fader');
+
+    expect(displayed, const LayoutControlValue.number(0.75));
+  });
+
+  test('tick listeners use the shared 30fps cadence', () {
+    final polling = LayoutPolling(_FakeSource());
+    var calls = 0;
+    polling.addTickListener(() => calls++);
+
+    polling.tick(Duration.zero);
+    polling.tick(const Duration(milliseconds: 32));
+    polling.tick(const Duration(milliseconds: 34));
+
+    expect(calls, 2);
   });
 
   testWidgets('rebinding a state to a new path polls the new path',

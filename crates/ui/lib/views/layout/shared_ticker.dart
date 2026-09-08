@@ -120,6 +120,7 @@ class _LayoutPollingScopeState extends State<LayoutPollingScope>
   @override
   void dispose() {
     _ticker.dispose();
+    _polling.dispose();
     super.dispose();
   }
 
@@ -146,9 +147,18 @@ class _SharedEntry {
 class LayoutPolling {
   LayoutValuesSource source;
   final Map<_LayoutRequest, _SharedEntry> _entries = {};
+  final ValueNotifier<int> _tickListeners = ValueNotifier(0);
   Duration? _lastPoll;
 
   LayoutPolling(this.source);
+
+  void addTickListener(VoidCallback listener) =>
+      _tickListeners.addListener(listener);
+
+  void removeTickListener(VoidCallback listener) =>
+      _tickListeners.removeListener(listener);
+
+  void dispose() => _tickListeners.dispose();
 
   ValueNotifier<LayoutControlValue> subscribe(
       String path, LayoutValueKind kind) {
@@ -170,18 +180,21 @@ class LayoutPolling {
   }
 
   void tick(Duration elapsed) {
-    if (_entries.isEmpty || !shouldPoll(_lastPoll, elapsed)) return;
+    if (!shouldPoll(_lastPoll, elapsed)) return;
     _lastPoll = elapsed;
-    final requests = _entries.keys.toList(growable: false);
-    final values = source.readLayoutValues(
-        requests.map((request) => request.kind.index).toList(),
-        requests.map((request) => request.path).toList());
-    for (var index = 0; index < requests.length; index++) {
-      final entry = _entries[requests[index]];
-      if (entry == null) continue;
-      final value = LayoutControlValue.fromRaw(values[index]);
-      if (entry.notifier.value != value) entry.notifier.value = value;
+    if (_entries.isNotEmpty) {
+      final requests = _entries.keys.toList(growable: false);
+      final values = source.readLayoutValues(
+          requests.map((request) => request.kind.index).toList(),
+          requests.map((request) => request.path).toList());
+      for (var index = 0; index < requests.length; index++) {
+        final entry = _entries[requests[index]];
+        if (entry == null) continue;
+        final value = LayoutControlValue.fromRaw(values[index]);
+        if (entry.notifier.value != value) entry.notifier.value = value;
+      }
     }
+    _tickListeners.value++;
   }
 }
 
@@ -211,6 +224,7 @@ class LayoutSubscriber {
     }
     _notifier = _polling.subscribe(path, _kind)..addListener(_onValue);
     _path = path;
+    _onValue();
   }
 
   void dispose() {

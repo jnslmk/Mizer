@@ -1,3 +1,4 @@
+import 'package:mizer/api/plugin/ffi/sequencer.dart';
 import 'package:mizer/views/layout/shared_ticker.dart';
 import 'package:test/test.dart';
 
@@ -20,4 +21,16 @@ void main() {
     expect(LayoutControlValue.steps(const [true, false], 2),
         isNot(equals(LayoutControlValue.steps(const [false, true], 2))));
   });
+
+  test('identical sequencer reads compare equal by value', () {
+    final first = {
+      1: SequenceState(active: true, cueId: 42, rate: 0.5),
+    };
+    final second = {
+      1: SequenceState(active: true, cueId: 42, rate: 0.5),
+    };
+
+    expect(first, equals(second));
+  });
+
 }

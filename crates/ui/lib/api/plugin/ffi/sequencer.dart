@@ -13,7 +13,8 @@ class SequencerPointer extends FFIPointer<bindings.Sequencer> {
   Map<int, SequenceState> readState() {
     bindings.Array_SequenceState result = this._bindings.read_sequencer_state(ptr);
 
-    var states = new List.generate(result.len, (index) => result.array.elementAt(index).ref);
+    var states =
+        new List.generate(result.len, (index) => (result.array + index).ref);
 
     var sequenceStates = states
         .asMap()
@@ -31,9 +32,9 @@ class SequencerPointer extends FFIPointer<bindings.Sequencer> {
 }
 
 class SequenceState with Diagnosticable {
-  bool active;
-  int? cueId;
-  double rate;
+  final bool active;
+  final int? cueId;
+  final double rate;
 
   SequenceState({required this.active, required this.cueId, required this.rate});
   factory SequenceState.fromBinding(bindings.SequenceState binding) {
@@ -42,6 +43,16 @@ class SequenceState with Diagnosticable {
         cueId: binding.current_cue_id == 0 ? null : binding.current_cue_id,
         rate: binding.rate);
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is SequenceState &&
+      active == other.active &&
+      cueId == other.cueId &&
+      rate == other.rate;
+
+  @override
+  int get hashCode => Object.hash(active, cueId, rate);
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {

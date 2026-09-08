@@ -4,7 +4,6 @@ import 'package:collection/collection.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mizer/api/contracts/layouts.dart';
 import 'package:mizer/api/contracts/sequencer.dart';
@@ -512,36 +511,46 @@ class SequencerStateFetcher extends StatefulWidget {
   _SequencerStateFetcherState createState() => _SequencerStateFetcherState();
 }
 
-class _SequencerStateFetcherState extends State<SequencerStateFetcher>
-    with SingleTickerProviderStateMixin {
+class _SequencerStateFetcherState extends State<SequencerStateFetcher> {
   SequencerPointer? _pointer;
+  LayoutPolling? _polling;
   Map<int, SequenceState> sequenceStates = {};
-  Ticker? ticker;
-  Duration? _lastPoll;
 
   @override
   void initState() {
     super.initState();
-    var sequencerApi = context.read<SequencerApi>();
-    sequencerApi.getSequencerPointer().then((pointer) => setState(() {
-          _pointer = pointer;
-          ticker = this.createTicker((elapsed) {
-            if (!shouldPoll(_lastPoll, elapsed)) return;
-            _lastPoll = elapsed;
-            final next = _pointer!.readState();
-            if (!const MapEquality<int, SequenceState>()
-                .equals(sequenceStates, next)) {
-              setState(() => sequenceStates = next);
-            }
-          });
-          ticker!.start();
-        }));
+    context.read<SequencerApi>().getSequencerPointer().then((pointer) {
+      if (!mounted) {
+        pointer?.dispose();
+        return;
+      }
+      setState(() => _pointer = pointer);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final polling = LayoutPollingScope.of(context);
+    if (identical(_polling, polling)) return;
+    _polling?.removeTickListener(_onTick);
+    _polling = polling..addTickListener(_onTick);
+  }
+
+  void _onTick() {
+    final pointer = _pointer;
+    if (pointer == null) return;
+    final next = pointer.readState();
+    if (!const MapEquality<int, SequenceState>()
+        .equals(sequenceStates, next)) {
+      setState(() => sequenceStates = next);
+    }
   }
 
   @override
   void dispose() {
+    _polling?.removeTickListener(_onTick);
     _pointer?.dispose();
-    ticker?.stop(canceled: true);
     super.dispose();
   }
 
