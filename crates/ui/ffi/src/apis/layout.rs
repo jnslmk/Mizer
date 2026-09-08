@@ -10,7 +10,8 @@ use std::sync::Arc;
 
 pub struct LayoutRef {
     pub view: LayoutsView,
-    labels: Mutex<HashMap<*const c_char, CString>>,
+    // ponytail: one retained CString per label path; readers copy it synchronously per read.
+    labels: Mutex<HashMap<NodePath, CString>>,
 }
 
 impl LayoutRef {
@@ -19,6 +20,13 @@ impl LayoutRef {
             view,
             labels: Default::default(),
         }
+    }
+
+    fn store_label(&self, path: &NodePath, value: String) -> *const c_char {
+        let value = CString::new(value).unwrap();
+        let pointer = value.as_ptr();
+        self.labels.lock().insert(path.clone(), value);
+        pointer
     }
 }
 
@@ -78,13 +86,7 @@ pub extern "C" fn read_label_value(ptr: *const LayoutRef, path: *const c_char) -
     let ffi = Arc::from_pointer(ptr);
 
     let value = ffi.view.get_label_value(&node_path).unwrap_or_default();
-    let value = value.to_string();
-    let value = CString::new(value).unwrap();
-    let value_pointer = value.as_ptr();
-    {
-        let mut labels = ffi.labels.lock();
-        labels.insert(value_pointer, value);
-    }
+    let value_pointer = ffi.store_label(&node_path, value.to_string());
 
     std::mem::forget(ffi);
 
@@ -203,9 +205,7 @@ pub extern "C" fn read_layout_values(
                     }
                 }
                 3 => {
-                    let value = CString::new(ffi.view.get_label_value(&path).unwrap_or_default().to_string()).unwrap();
-                    let label = value.as_ptr();
-                    ffi.labels.lock().insert(label, value);
+                    let label = ffi.store_label(&path, ffi.view.get_label_value(&path).unwrap_or_default().to_string());
                     FFILayoutValue { label, ..Default::default() }
                 }
                 4 => {
@@ -309,4 +309,57 @@ pub struct FFIDialValue {
 pub struct FFIStepSequencerValue {
     pub value: Array<u8>,
     pub beat: u8,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> (*const LayoutRef, CString) {
+        let layout = Arc::new(LayoutRef::new(LayoutsView::default()));
+        (Arc::into_raw(layout), CString::new("/Label 0").unwrap())
+    }
+
+    fn batch_label_read(ptr: *const LayoutRef, path: &CString) -> Array<FFILayoutValue> {
+        let request = FFILayoutReadRequest {
+            path: path.as_ptr(),
+            kind: 3,
+        };
+        read_layout_values(ptr, &request, 1)
+    }
+
+    fn label_count(ptr: *const LayoutRef) -> usize {
+        unsafe { &*ptr }.labels.lock().len()
+    }
+
+    #[test]
+    fn repeated_batch_label_reads_keep_retention_bounded() {
+        let (ptr, path) = fixture();
+
+        let values = batch_label_read(ptr, &path).into_vec();
+        assert_eq!(unsafe { CStr::from_ptr(values[0].label) }.to_str().unwrap(), "");
+        drop_layout_values(values.into());
+        let baseline = label_count(ptr);
+        for _ in 0..1000 {
+            drop_layout_values(batch_label_read(ptr, &path));
+        }
+
+        assert_eq!(label_count(ptr), baseline);
+        drop_layout_pointer(ptr);
+    }
+
+    #[test]
+    fn repeated_single_label_reads_keep_retention_bounded() {
+        let (ptr, path) = fixture();
+
+        let label = read_label_value(ptr, path.as_ptr());
+        assert_eq!(unsafe { CStr::from_ptr(label) }.to_str().unwrap(), "");
+        let baseline = label_count(ptr);
+        for _ in 0..1000 {
+            read_label_value(ptr, path.as_ptr());
+        }
+
+        assert_eq!(label_count(ptr), baseline);
+        drop_layout_pointer(ptr);
+    }
 }
