@@ -9,3 +9,5 @@ pipeline.dot
 .flatpak
 mizer.flatpak
 mizer.zip
+.codex-tmp/
+.worktrees/
