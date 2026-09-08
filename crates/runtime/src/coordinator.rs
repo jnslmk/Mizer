@@ -125,22 +125,49 @@ impl CoordinatorRuntime {
     }
 
     #[profiling::function]
-    pub(crate) fn read_states_into_view(&self) {
-        let layouts = self.layouts.read();
-        let nodes = layouts
-            .into_iter()
-            .flat_map(|layout| layout.controls)
-            .filter_map(|control| match control.control_type {
-                ControlType::Node { path: node } => Some(node),
-                _ => None,
-            })
-            .sorted()
-            .dedup()
-            .collect::<Vec<_>>();
-
+    pub(crate) fn read_states_into_view(&self) -> usize {
         let pipeline = self.injector.inject::<Pipeline>();
+        // Classify each layout control path by node type once, so the per-kind
+        // passes below only touch the nodes they can actually read instead of
+        // probing every path against every control node type each tick.
+        // ponytail: per-tick rebuild, no cache; layouts are small and a cache
+        // would need invalidation plumbing for identical output.
+        let mut fader_paths = Vec::new();
+        let mut dial_paths = Vec::new();
+        let mut button_paths = Vec::new();
+        let mut label_paths = Vec::new();
+        let mut clock_paths = Vec::new();
+        let mut step_sequencer_paths = Vec::new();
+        let mut level_paths = Vec::new();
+        {
+            let layouts = self.layouts.get_ref();
+            let paths = layouts
+                .iter()
+                .flat_map(|layout| &layout.controls)
+                .filter_map(|control| match &control.control_type {
+                    ControlType::Node { path } => Some(path.clone()),
+                    _ => None,
+                })
+                .sorted()
+                .dedup()
+                .collect::<Vec<_>>();
+            for path in &paths {
+                let node_type = pipeline.get_node_dyn(path).map(|node| node.node_type());
+                match node_type {
+                    Some(NodeType::Fader) => fader_paths.push(path.clone()),
+                    Some(NodeType::Dial) => dial_paths.push(path.clone()),
+                    Some(NodeType::Button) => button_paths.push(path.clone()),
+                    Some(NodeType::Label) => label_paths.push(path.clone()),
+                    Some(NodeType::Timecode) => clock_paths.push(path.clone()),
+                    Some(NodeType::StepSequencer) => step_sequencer_paths.push(path.clone()),
+                    Some(NodeType::Level) => level_paths.push(path.clone()),
+                    _ => {}
+                }
+            }
+        }
+        let mut changed = 0;
 
-        let fader_values = nodes
+        let fader_values = fader_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -150,9 +177,9 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_fader_values(fader_values);
+        changed += self.layout_fader_view.write_fader_values(fader_values) as usize;
 
-        let dial_values = nodes
+        let dial_values = dial_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -172,9 +199,9 @@ impl CoordinatorRuntime {
                     .map(|value| (path.clone(), value))
             })
             .collect::<HashMap<_, _>>();
-        self.layout_fader_view.write_dial_values(dial_values);
+        changed += self.layout_fader_view.write_dial_values(dial_values) as usize;
 
-        let button_values = nodes
+        let button_values = button_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -184,9 +211,9 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_button_values(button_values);
+        changed += self.layout_fader_view.write_button_values(button_values) as usize;
 
-        let label_values = nodes
+        let label_values = label_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -196,9 +223,9 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_label_values(label_values);
+        changed += self.layout_fader_view.write_label_values(label_values) as usize;
 
-        let clock_values = nodes
+        let clock_values = clock_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -208,9 +235,9 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_clock_values(clock_values);
+        changed += self.layout_fader_view.write_clock_values(clock_values) as usize;
 
-        let button_colors = nodes
+        let button_colors = button_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -220,9 +247,9 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_control_colors(button_colors);
+        changed += self.layout_fader_view.write_control_colors(button_colors) as usize;
 
-        let step_sequencer_values = nodes
+        let step_sequencer_values = step_sequencer_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -231,9 +258,11 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_step_sequencer_values(step_sequencer_values);
+        changed += self
+            .layout_fader_view
+            .write_step_sequencer_values(step_sequencer_values) as usize;
 
-        let level_values = nodes
+        let level_values = level_paths
             .iter()
             .filter_map(|path| {
                 pipeline
@@ -243,7 +272,9 @@ impl CoordinatorRuntime {
             })
             .collect::<HashMap<_, _>>();
 
-        self.layout_fader_view.write_level_values(level_values);
+        changed += self.layout_fader_view.write_level_values(level_values) as usize;
+
+        changed
     }
 
     fn get_preset_ids(&self) -> Vec<PresetId> {
@@ -279,9 +310,16 @@ impl CoordinatorRuntime {
 
     #[profiling::function]
     pub(crate) fn read_node_settings(&mut self, paths: &[NodePath]) {
-        let (pipeline, injector) = self.injector.get_slice_mut::<Pipeline>().unwrap();
-        pipeline.refresh_settings(injector, paths);
-        let settings = pipeline.get_settings(paths);
+        // The watched-settings set is empty most ticks; skip the pipeline
+        // refresh and still publish the (empty) settings so subscribers see
+        // the same event they would have without the gate.
+        let settings = if paths.is_empty() {
+            HashMap::new()
+        } else {
+            let (pipeline, injector) = self.injector.get_slice_mut::<Pipeline>().unwrap();
+            pipeline.refresh_settings(injector, paths);
+            pipeline.get_settings(paths)
+        };
         self.node_settings_bus.send(settings);
     }
 
@@ -480,5 +518,140 @@ mod tests {
             .read_state::<<FaderNode as ProcessingNode>::State>(&node.path)
             .unwrap();
         assert_eq!(state, &None);
+    }
+
+    fn setup_static_layout_runner() -> (CoordinatorRuntime, NodePath) {
+        use mizer_layouts::{ControlBehavior, ControlDecorations, ControlPosition, ControlSize};
+
+        let mut runner = CoordinatorRuntime::new();
+        let mut pipeline = Pipeline::new();
+        let descriptor = pipeline
+            .add_node(
+                runner.injector(),
+                NodeType::Fader,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            )
+            .unwrap();
+        let path = descriptor.path.clone();
+        runner.injector.provide(pipeline);
+        let controls = vec![ControlConfig {
+            id: Default::default(),
+            label: None,
+            control_type: ControlType::Node { path: path.clone() },
+            position: ControlPosition::default(),
+            size: ControlSize::default(),
+            decoration: ControlDecorations::default(),
+            behavior: ControlBehavior::default(),
+            hotkey: None,
+        }];
+        runner.add_layouts([("show".to_string(), controls)]);
+        (runner, path)
+    }
+
+    #[test]
+    fn idle_tick_skips_view_writes_when_nothing_changed() {
+        let (mut runner, _) = setup_static_layout_runner();
+        runner.process();
+
+        assert_eq!(runner.read_states_into_view(), 0);
+    }
+
+    #[test]
+    fn changed_value_propagates_in_the_same_tick() {
+        let (mut runner, path) = setup_static_layout_runner();
+        runner.process();
+        let view = runner.access().layouts_view.clone();
+        assert_eq!(view.get_fader_value(&path), Some(0.0));
+
+        let pipeline = runner.injector.get_mut::<Pipeline>().unwrap();
+        pipeline
+            .get_node_mut::<FaderNode>(&path)
+            .unwrap()
+            .default_value = 0.75;
+        runner.process();
+
+        assert_eq!(view.get_fader_value(&path), Some(0.75));
+        assert_eq!(runner.read_states_into_view(), 0);
+    }
+
+    #[test]
+    #[ignore]
+    fn profile_static_tick() {
+        use std::time::Instant;
+
+        use mizer_layouts::{ControlBehavior, ControlDecorations, ControlPosition, ControlSize};
+
+        let mut runner = CoordinatorRuntime::new();
+        let mut pipeline = Pipeline::new();
+        let mut paths = Vec::new();
+        for node_type in [NodeType::Fader, NodeType::Dial, NodeType::Button] {
+            for _ in 0..8 {
+                let descriptor = pipeline
+                    .add_node(
+                        runner.injector(),
+                        node_type,
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                    )
+                    .unwrap();
+                paths.push(descriptor.path);
+            }
+        }
+        runner.injector.provide(pipeline);
+        let controls = paths
+            .into_iter()
+            .map(|path| ControlConfig {
+                id: Default::default(),
+                label: None,
+                control_type: ControlType::Node { path },
+                position: ControlPosition::default(),
+                size: ControlSize::default(),
+                decoration: ControlDecorations::default(),
+                behavior: ControlBehavior::default(),
+                hotkey: None,
+            })
+            .collect();
+        runner.add_layouts([("show".to_string(), controls)]);
+
+        for _ in 0..200 {
+            runner.process();
+        }
+        let iters = 2000u32;
+        let bench = |label: &str, f: &mut dyn FnMut()| {
+            let start = Instant::now();
+            for _ in 0..iters {
+                f();
+            }
+            let per_tick = start.elapsed() / iters;
+            println!("profile: {label} = {per_tick:?} per tick");
+            per_tick
+        };
+        let full = bench("process", &mut || runner.process());
+        let views = bench("read_states_into_view", &mut || {
+            runner.read_states_into_view();
+        });
+        let settings = bench("read_node_settings_empty", &mut || {
+            runner.read_node_settings(&[])
+        });
+        let layouts_clone = bench("layouts_read_clone", &mut || {
+            std::hint::black_box(runner.layouts.read());
+        });
+        let clock_push = bench("clock_send_and_pinboard_set", &mut || {
+            let snapshot = runner.clock().snapshot();
+            std::hint::black_box(runner.clock_sender.send(snapshot)).unwrap();
+            runner.clock_snapshot.set(snapshot);
+        });
+        // Drain the extra snapshots pushed by the clock_push bench above.
+        while runner.clock_recv.try_recv().is_ok() {}
+        println!(
+            "profile: share views={:.1}% settings={:.1}% layouts_clone={:.1}% clock_push={:.1}% of process",
+            views.as_nanos() as f64 / full.as_nanos() as f64 * 100.0,
+            settings.as_nanos() as f64 / full.as_nanos() as f64 * 100.0,
+            layouts_clone.as_nanos() as f64 / full.as_nanos() as f64 * 100.0,
+            clock_push.as_nanos() as f64 / full.as_nanos() as f64 * 100.0,
+        );
     }
 }
