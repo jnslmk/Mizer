@@ -2,13 +2,15 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mizer/api/contracts/programmer.dart';
-import 'package:mizer/mixins/programmer_mixin.dart';
 import 'package:mizer/protos/layouts.pb.dart' show ControlSize;
 import 'package:mizer/state/presets_bloc.dart';
 import 'package:mizer/widgets/grid/grid_tile.dart';
 import 'package:mizer/widgets/high_contrast_text.dart';
 
-class PresetControl extends StatefulWidget {
+/// Static preset tile: it displays no programmer state, so unlike
+/// [GroupControl] it needs no polling subscription at all and rebuilds only
+/// when [PresetsBloc] emits or its parent rebuilds.
+class PresetControl extends StatelessWidget {
   final String? label;
   final Color? color;
   final PresetId presetId;
@@ -19,17 +21,11 @@ class PresetControl extends StatefulWidget {
       : super(key: key);
 
   @override
-  State<PresetControl> createState() => _PresetControlState();
-}
-
-class _PresetControlState extends State<PresetControl>
-    with SingleTickerProviderStateMixin, ProgrammerStateMixin {
-  @override
   Widget build(BuildContext context) {
     return BlocBuilder<PresetsBloc, PresetsState>(builder: (context, state) {
       return PanelGridTile(
-        color: widget.color,
-        onTap: () => _callPreset(),
+        color: color,
+        onTap: () => _callPreset(context),
         child: Center(
             child: HighContrastText(_getLabel(state), textAlign: TextAlign.center))
       );
@@ -37,17 +33,17 @@ class _PresetControlState extends State<PresetControl>
   }
 
   PresetId get _presetId {
-    return widget.presetId;
+    return presetId;
   }
 
-  _callPreset() {
+  _callPreset(BuildContext context) {
     var programmerApi = context.read<ProgrammerApi>();
     programmerApi.callPreset(_presetId);
   }
 
   String _getLabel(PresetsState state) {
-    if (widget.label != null && widget.label!.isNotEmpty) {
-      return widget.label!;
+    if (label != null && label!.isNotEmpty) {
+      return label!;
     }
 
     return _getPresets(state).firstWhereOrNull((p) => p.id == _presetId)?.label ?? "";

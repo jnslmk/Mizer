@@ -1,7 +1,9 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:mizer/api/contracts/programmer.dart';
 import 'package:mizer/api/plugin/ffi/layout.dart';
+import 'package:provider/provider.dart';
 
 const _pollInterval = Duration(milliseconds: 33);
 
@@ -58,6 +60,9 @@ class LayoutControlValue {
         beat: raw.beat,
       );
 
+  // Exact double equality is deliberate: any bit difference from the last
+  // FFI read is a real change worth notifying for. NaN != NaN, so a NaN
+  // value notifies on every tick instead of settling.
   @override
   bool operator ==(Object other) =>
       other is LayoutControlValue &&
@@ -100,13 +105,22 @@ class LayoutPollingScope extends StatefulWidget {
 
 class _LayoutPollingScopeState extends State<LayoutPollingScope>
     with SingleTickerProviderStateMixin {
-  late LayoutPolling _polling = LayoutPolling(widget.source);
-  late Ticker _ticker;
+  late final LayoutPolling _polling = LayoutPolling(widget.source);
+  late final Ticker _ticker;
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_polling.tick)..start();
+    // One programmer pointer per layout view, shared by all group
+    // subscribers through LayoutPolling (same pattern as SequencerStateFetcher).
+    context.read<ProgrammerApi>().getProgrammerPointer().then((pointer) {
+      if (!mounted) {
+        pointer?.dispose();
+        return;
+      }
+      _polling.programmerSource = pointer;
+    });
   }
 
   @override
@@ -120,6 +134,8 @@ class _LayoutPollingScopeState extends State<LayoutPollingScope>
   @override
   void dispose() {
     _ticker.dispose();
+    _polling.programmerSource?.dispose();
+    _polling.programmerSource = null;
     _polling.dispose();
     super.dispose();
   }
@@ -146,8 +162,11 @@ class _SharedEntry {
 
 class LayoutPolling {
   LayoutValuesSource source;
+  IProgrammerStatePointer? programmerSource;
   final Map<_LayoutRequest, _SharedEntry> _entries = {};
   final ValueNotifier<int> _tickListeners = ValueNotifier(0);
+  ValueNotifier<ProgrammerState>? _programmerNotifier;
+  int _programmerRefs = 0;
   Duration? _lastPoll;
 
   LayoutPolling(this.source);
@@ -155,10 +174,30 @@ class LayoutPolling {
   void addTickListener(VoidCallback listener) =>
       _tickListeners.addListener(listener);
 
+  void dispose() {
+    _tickListeners.dispose();
+    _programmerNotifier?.dispose();
+    _programmerNotifier = null;
+  }
+
+  /// Shared programmer-state subscription: one FFI read per tick no matter
+  /// how many group controls listen; the notifier only fires on exact change.
+  ValueNotifier<ProgrammerState> subscribeProgrammer() {
+    _programmerRefs++;
+    return _programmerNotifier ??= ValueNotifier(ProgrammerState());
+  }
+
+  void unsubscribeProgrammer() {
+    if (_programmerRefs <= 0) return;
+    _programmerRefs--;
+    if (_programmerRefs <= 0) {
+      _programmerRefs = 0;
+      _programmerNotifier?.dispose();
+      _programmerNotifier = null;
+    }
+  }
   void removeTickListener(VoidCallback listener) =>
       _tickListeners.removeListener(listener);
-
-  void dispose() => _tickListeners.dispose();
 
   ValueNotifier<LayoutControlValue> subscribe(
       String path, LayoutValueKind kind) {
@@ -193,6 +232,12 @@ class LayoutPolling {
         final value = LayoutControlValue.fromRaw(values[index]);
         if (entry.notifier.value != value) entry.notifier.value = value;
       }
+    }
+    final programmerNotifier = _programmerNotifier;
+    final programmerSource = this.programmerSource;
+    if (programmerNotifier != null && programmerSource != null) {
+      final next = programmerSource.readState();
+      if (programmerNotifier.value != next) programmerNotifier.value = next;
     }
     _tickListeners.value++;
   }
@@ -234,6 +279,36 @@ class LayoutSubscriber {
       _path = null;
       _notifier = null;
     }
+  }
+}
+
+/// Per-widget handle on the shared programmer-state notifier.
+///
+/// Group controls attach once and project the `activeGroups` membership they
+/// display; attach/dispose balance subscribe/unsubscribe calls so the shared
+/// notifier (and its once-per-tick FFI read) lives only while subscribers
+/// remain. Mirrors [LayoutSubscriber] without a node path: every subscriber
+/// shares the same whole-state read.
+class ProgrammerSubscriber {
+  final LayoutPolling _polling;
+  final VoidCallback _onValue;
+  ValueNotifier<ProgrammerState>? _notifier;
+
+  ProgrammerSubscriber(this._polling, this._onValue);
+
+  ValueNotifier<ProgrammerState>? get notifier => _notifier;
+
+  void attach() {
+    if (_notifier != null) return;
+    _notifier = _polling.subscribeProgrammer()..addListener(_onValue);
+    _onValue();
+  }
+
+  void dispose() {
+    if (_notifier == null) return;
+    _notifier!.removeListener(_onValue);
+    _polling.unsubscribeProgrammer();
+    _notifier = null;
   }
 }
 
