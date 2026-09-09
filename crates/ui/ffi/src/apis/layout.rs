@@ -167,6 +167,72 @@ pub extern "C" fn read_level_value(ptr: *const LayoutRef, path: *const c_char) -
 
 
 #[no_mangle]
+pub extern "C" fn read_layout_values(
+    ptr: *const LayoutRef,
+    requests: *const FFILayoutReadRequest,
+    len: usize,
+) -> Array<FFILayoutValue> {
+    let ffi = Arc::from_pointer(ptr);
+    let requests = unsafe { std::slice::from_raw_parts(requests, len) };
+    let values = requests
+        .iter()
+        .map(|request| {
+            let path = unsafe { CStr::from_ptr(request.path) }.to_str().unwrap();
+            let path = NodePath::from(path);
+            match request.kind {
+                0 => FFILayoutValue::number(ffi.view.get_fader_value(&path).unwrap_or_default()),
+                1 => {
+                    let value = ffi.view.get_dial_value(&path).unwrap_or_default();
+                    FFILayoutValue {
+                        value: value.value,
+                        min: value.min,
+                        max: value.max,
+                        percentage: value.percentage.into(),
+                        ..Default::default()
+                    }
+                }
+                2 => {
+                    let color = ffi.view.get_control_color(&path);
+                    FFILayoutValue {
+                        value: ffi.view.get_button_value(&path).unwrap_or_default().into(),
+                        has_color: color.is_some().into(),
+                        color_red: color.map_or(0., |color| color.red),
+                        color_green: color.map_or(0., |color| color.green),
+                        color_blue: color.map_or(0., |color| color.blue),
+                        ..Default::default()
+                    }
+                }
+                3 => {
+                    let value = CString::new(ffi.view.get_label_value(&path).unwrap_or_default().to_string()).unwrap();
+                    let label = value.as_ptr();
+                    ffi.labels.lock().insert(label, value);
+                    FFILayoutValue { label, ..Default::default() }
+                }
+                4 => {
+                    let (steps, beat) = ffi.view.get_step_sequencer_value(&path).unwrap_or_default();
+                    FFILayoutValue {
+                        steps: steps.into_iter().map(|step| step as u8).collect(),
+                        beat,
+                        ..Default::default()
+                    }
+                }
+                5 => FFILayoutValue::number(ffi.view.get_level_value(&path).unwrap_or_default()),
+                _ => Default::default(),
+            }
+        })
+        .collect();
+    std::mem::forget(ffi);
+    values
+}
+
+#[no_mangle]
+pub extern "C" fn drop_layout_values(values: Array<FFILayoutValue>) {
+    for value in values.into_vec() {
+        drop_array(value.steps);
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn drop_layout_pointer(ptr: *const LayoutRef) {
     drop_pointer(ptr);
 }
@@ -174,6 +240,51 @@ pub extern "C" fn drop_layout_pointer(ptr: *const LayoutRef) {
 #[no_mangle]
 pub extern "C" fn drop_step_sequencer_value(value: FFIStepSequencerValue) {
     drop_array(value.value);
+}
+
+#[repr(C)]
+pub struct FFILayoutReadRequest {
+    pub path: *const c_char,
+    pub kind: u8,
+}
+
+#[repr(C)]
+pub struct FFILayoutValue {
+    pub value: f64,
+    pub min: f64,
+    pub max: f64,
+    pub percentage: u8,
+    pub has_color: u8,
+    pub color_red: f64,
+    pub color_green: f64,
+    pub color_blue: f64,
+    pub label: *const c_char,
+    pub steps: Array<u8>,
+    pub beat: u8,
+}
+
+impl FFILayoutValue {
+    fn number(value: f64) -> Self {
+        Self { value, ..Default::default() }
+    }
+}
+
+impl Default for FFILayoutValue {
+    fn default() -> Self {
+        Self {
+            value: 0.,
+            min: 0.,
+            max: 0.,
+            percentage: 0,
+            has_color: 0,
+            color_red: 0.,
+            color_green: 0.,
+            color_blue: 0.,
+            label: std::ptr::null(),
+            steps: Vec::new().into(),
+            beat: 0,
+        }
+    }
 }
 
 #[derive(Default)]

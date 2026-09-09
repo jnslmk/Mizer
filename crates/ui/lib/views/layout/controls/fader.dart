@@ -1,8 +1,8 @@
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mizer/api/contracts/nodes.dart';
 import 'package:mizer/api/plugin/ffi/layout.dart';
 import 'package:mizer/protos/layouts.pb.dart' hide Color;
+import 'package:mizer/views/layout/shared_ticker.dart';
 import 'package:mizer/widgets/inputs/fader.dart';
 import 'package:provider/provider.dart';
 
@@ -11,46 +11,63 @@ class FaderControl extends StatefulWidget {
   final LayoutControl control;
   final Color? color;
 
-  const FaderControl({required this.pointer, required this.control, required this.color, Key? key})
-      : super(key: key);
+  const FaderControl({
+    required this.pointer,
+    required this.control,
+    required this.color,
+    Key? key,
+  }) : super(key: key);
 
   @override
   _FaderControlState createState() => _FaderControlState();
 }
 
-class _FaderControlState extends State<FaderControl> with SingleTickerProviderStateMixin {
+class _FaderControlState extends State<FaderControl> {
   double value = 0;
-  late Ticker ticker;
+  LayoutSubscriber? _subscription;
 
   @override
-  void initState() {
-    super.initState();
-    this.ticker = this.createTicker((elapsed) async {
-      var v = widget.pointer.readFaderValue(widget.control.node.path);
-      if (!this.mounted) {
-        return;
-      }
-      setState(() => value = v);
-    });
-    this.ticker.start();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _subscription ??= LayoutSubscriber(
+      LayoutPollingScope.of(context),
+      LayoutValueKind.fader,
+      _onValue,
+    );
+    _subscription!.resubscribe(widget.control.node.path);
+  }
+
+  @override
+  void didUpdateWidget(FaderControl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _subscription?.resubscribe(widget.control.node.path);
+  }
+
+  void _onValue() {
+    final next = _subscription!.notifier!.value.value;
+    if (value != next && mounted) {
+      setState(() => value = next);
+    }
   }
 
   @override
   void dispose() {
-    this.ticker.stop(canceled: true);
+    _subscription?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     NodesApi apiClient = context.read();
-
     return FaderInput(
       label: widget.control.label,
       color: widget.color,
       value: value,
-      onValue: (value) =>
-          apiClient.writeControlValue(path: widget.control.node.path, port: "Input", value: value),
+      onValue: (value) => apiClient.writeControlValue(
+        path: widget.control.node.path,
+        port: "Input",
+        value: value,
+      ),
     );
   }
 }

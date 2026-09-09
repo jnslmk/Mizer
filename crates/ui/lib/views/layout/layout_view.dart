@@ -4,7 +4,6 @@ import 'package:collection/collection.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mizer/api/contracts/layouts.dart';
 import 'package:mizer/api/contracts/sequencer.dart';
@@ -25,6 +24,7 @@ import 'package:mizer/views/layout/add_control_popup.dart';
 import 'package:mizer/views/layout/control.dart';
 import 'package:mizer/views/layout/dialogs/delete_layout_dialog.dart';
 import 'package:mizer/views/layout/layout_hotkeys.dart';
+import 'package:mizer/views/layout/shared_ticker.dart';
 import 'package:mizer/widgets/panel.dart';
 import 'package:mizer/widgets/platform/context_menu.dart';
 import 'package:mizer/widgets/popup/popup_route.dart';
@@ -88,7 +88,8 @@ class LayoutView extends StatelessWidget {
         child: Panel.tabs(
           label: "Layout".i18n,
           tabIndex: state.tabIndex,
-          onSelectTab: (index) => layoutsBloc.add(SelectLayoutTab(tabIndex: index)),
+          onSelectTab: (index) =>
+              layoutsBloc.add(SelectLayoutTab(tabIndex: index)),
           padding: false,
           tabs: state.layouts
               .map((layout) => tabs.Tab(
@@ -96,15 +97,19 @@ class LayoutView extends StatelessWidget {
                       menu: Menu(items: [
                         MenuItem(
                             label: "Rename".i18n,
-                            action: () => _onRename(context, layout, layoutsBloc)),
+                            action: () =>
+                                _onRename(context, layout, layoutsBloc)),
                         MenuItem(
                             label: "Duplicate".i18n,
-                            action: () => _onDuplicate(context, layout, layoutsBloc)),
+                            action: () =>
+                                _onDuplicate(context, layout, layoutsBloc)),
                         MenuItem(
                             label: "Delete".i18n,
-                            action: () => _onDelete(context, layout, layoutsBloc)),
+                            action: () =>
+                                _onDelete(context, layout, layoutsBloc)),
                       ]),
-                      child: tabs.TabHeader(layout.id, selected: active, onSelect: setActive)),
+                      child: tabs.TabHeader(layout.id,
+                          selected: active, onSelect: setActive)),
                   child: ControlLayout(
                     pointer: _pointer,
                     layout: layout,
@@ -131,23 +136,25 @@ class LayoutView extends StatelessWidget {
 
   void _onDelete(BuildContext context, Layout layout, LayoutsBloc bloc) async {
     bool result = await showDialog(
-        context: context, builder: (BuildContext context) => DeleteLayoutDialog(layout: layout));
+        context: context,
+        builder: (BuildContext context) => DeleteLayoutDialog(layout: layout));
     if (result) {
       bloc.add(RemoveLayout(id: layout.id));
     }
   }
 
   void _onRename(BuildContext context, Layout layout, LayoutsBloc bloc) async {
-    String? result =
-        await showDialog(context: context, builder: (context) => NameDialog(name: layout.id));
+    String? result = await showDialog(
+        context: context, builder: (context) => NameDialog(name: layout.id));
     if (result != null) {
       bloc.add(RenameLayout(id: layout.id, name: result));
     }
   }
 
-  void _onDuplicate(BuildContext context, Layout layout, LayoutsBloc bloc) async {
-    String? result =
-    await showDialog(context: context, builder: (context) => NameDialog(name: layout.id));
+  void _onDuplicate(
+      BuildContext context, Layout layout, LayoutsBloc bloc) async {
+    String? result = await showDialog(
+        context: context, builder: (context) => NameDialog(name: layout.id));
     if (result != null) {
       bloc.add(DuplicateLayout(id: layout.id, name: result));
     }
@@ -174,10 +181,12 @@ class _ControlLayoutState extends State<ControlLayout> {
   Widget build(BuildContext context) {
     return LayoutHotkeys(
       layout: widget.layout,
-      child: BlocBuilder<SequencerBloc, SequencerState>(builder: (context, sequences) {
+      child: BlocBuilder<SequencerBloc, SequencerState>(
+          builder: (context, sequences) {
         return BlocBuilder<PresetsBloc, PresetsState>(
           builder: (context, presets) {
-            return BlocBuilder<NodesBloc, PipelineState>(builder: (context, nodes) {
+            return BlocBuilder<NodesBloc, PipelineState>(
+                builder: (context, nodes) {
               return Container(
                 width: 20 * MULTIPLIER,
                 height: 15 * MULTIPLIER,
@@ -198,36 +207,47 @@ class _ControlLayoutState extends State<ControlLayout> {
                       GestureDetector(
                         onSecondaryTapDown: (details) {
                           LayoutsBloc bloc = context.read();
-                          int x = (details.localPosition.dx / MULTIPLIER).floor();
-                          int y = (details.localPosition.dy / MULTIPLIER).floor();
-                          var position = ControlPosition(x: Int64(x), y: Int64(y));
+                          int x =
+                              (details.localPosition.dx / MULTIPLIER).floor();
+                          int y =
+                              (details.localPosition.dy / MULTIPLIER).floor();
+                          var position =
+                              ControlPosition(x: Int64(x), y: Int64(y));
                           Navigator.of(context).push(MizerPopupRoute(
                               position: details.globalPosition,
                               child: AddControlPopup(
                                 nodes: nodes.allNodes.where((node) {
                                   var control = widget.layout.controls
-                                      .firstWhereOrNull((c) => c.node.path == node.path);
+                                      .firstWhereOrNull(
+                                          (c) => c.node.path == node.path);
 
                                   return control == null;
                                 }).toList(),
                                 sequences: sequences.sequences,
                                 groups: presets.groups,
                                 presets: presets.presets,
-                                onCreateControl: (controlType) => bloc.add(AddControl(
-                                    layoutId: widget.layout.id,
-                                    controlType: controlType,
-                                    position: position)),
-                                onAddControlForExisting: (node) => bloc.add(AddExistingControl(
-                                    layoutId: widget.layout.id, node: node, position: position)),
-                                onCreateGroupControl: (group) => bloc.add(AddExistingControl.group(
-                                    layoutId: widget.layout.id, groupId: group, position: position)),
+                                onCreateControl: (controlType) => bloc.add(
+                                    AddControl(
+                                        layoutId: widget.layout.id,
+                                        controlType: controlType,
+                                        position: position)),
+                                onAddControlForExisting: (node) => bloc.add(
+                                    AddExistingControl(
+                                        layoutId: widget.layout.id,
+                                        node: node,
+                                        position: position)),
+                                onCreateGroupControl: (group) => bloc.add(
+                                    AddExistingControl.group(
+                                        layoutId: widget.layout.id,
+                                        groupId: group,
+                                        position: position)),
                                 onCreatePresetControl: (presetId) => bloc.add(
                                     AddExistingControl.preset(
                                         layoutId: widget.layout.id,
                                         presetId: presetId,
                                         position: position)),
-                                onCreateSequenceControl: (sequenceId) => bloc.add(
-                                    AddExistingControl.sequence(
+                                onCreateSequenceControl: (sequenceId) =>
+                                    bloc.add(AddExistingControl.sequence(
                                         layoutId: widget.layout.id,
                                         sequenceId: sequenceId,
                                         position: position)),
@@ -258,7 +278,8 @@ class _ControlLayoutState extends State<ControlLayout> {
     setState(() {
       _movingNode = control;
       _movingNodePosition =
-          Offset(control.position.x.toDouble(), control.position.y.toDouble()) * MULTIPLIER;
+          Offset(control.position.x.toDouble(), control.position.y.toDouble()) *
+              MULTIPLIER;
     });
   }
 
@@ -275,7 +296,8 @@ class _ControlLayoutState extends State<ControlLayout> {
     setState(() {
       _resizingNode = control;
       _resizingNodeSize =
-          Size(control.size.width.toDouble(), control.size.height.toDouble()) * MULTIPLIER;
+          Size(control.size.width.toDouble(), control.size.height.toDouble()) *
+              MULTIPLIER;
     });
   }
 
@@ -283,9 +305,9 @@ class _ControlLayoutState extends State<ControlLayout> {
     if (_resizingNode == null) {
       return;
     }
-    var corner =
-        Offset(_resizingNode!.position.x.toDouble(), _resizingNode!.position.y.toDouble()) *
-            MULTIPLIER;
+    var corner = Offset(_resizingNode!.position.x.toDouble(),
+            _resizingNode!.position.y.toDouble()) *
+        MULTIPLIER;
     setState(() {
       _resizingNodeSize = Rect.fromPoints(corner, event.localPosition).size;
     });
@@ -294,9 +316,12 @@ class _ControlLayoutState extends State<ControlLayout> {
   _placeNode() {
     LayoutsBloc bloc = context.read();
     if (_movingNode != null) {
-      var position = screenToLayoutPosition(_movingNodePosition!).toControlPosition();
-      bloc.add(
-          MoveControl(layoutId: widget.layout.id, controlId: _movingNode!.id, position: position));
+      var position =
+          screenToLayoutPosition(_movingNodePosition!).toControlPosition();
+      bloc.add(MoveControl(
+          layoutId: widget.layout.id,
+          controlId: _movingNode!.id,
+          position: position));
 
       setState(() {
         _movingNode = null;
@@ -305,7 +330,10 @@ class _ControlLayoutState extends State<ControlLayout> {
     }
     if (_resizingNode != null) {
       var size = screenToLayoutSize(_resizingNodeSize!).toControlSize();
-      bloc.add(ResizeControl(layoutId: widget.layout.id, controlId: _resizingNode!.id, size: size));
+      bloc.add(ResizeControl(
+          layoutId: widget.layout.id,
+          controlId: _resizingNode!.id,
+          size: size));
 
       setState(() {
         _resizingNode = null;
@@ -339,55 +367,58 @@ class _ControlsContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(2.0),
-      child: SequencerStateFetcher(builder: (context, sequencerState) {
-        return CustomMultiChildLayout(
-            delegate: ControlsLayoutDelegate(
-                layout, movingNode?.id, movingNodePosition, resizingNode?.id, resizingNodeSize),
-            children: [
-              if (movingNode != null)
-                LayoutId(
-                    id: MovingNodeIndicatorLayoutId,
-                    child: Container(
-                        decoration: ShapeDecoration(
-                      shape: RoundedRectangleBorder(
-                        side: BorderSide(
-                          color: Colors.deepOrange.withAlpha(128),
-                          width: 4,
-                          style: BorderStyle.solid,
+    return LayoutPollingScope.pointer(
+      pointer: pointer,
+      child: Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: SequencerStateFetcher(builder: (context, sequencerState) {
+          return CustomMultiChildLayout(
+              delegate: ControlsLayoutDelegate(layout, movingNode?.id,
+                  movingNodePosition, resizingNode?.id, resizingNodeSize),
+              children: [
+                if (movingNode != null)
+                  LayoutId(
+                      id: MovingNodeIndicatorLayoutId,
+                      child: Container(
+                          decoration: ShapeDecoration(
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(
+                            color: Colors.deepOrange.withAlpha(128),
+                            width: 4,
+                            style: BorderStyle.solid,
+                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(4)),
                         ),
-                        borderRadius: BorderRadius.all(Radius.circular(4)),
-                      ),
-                      color: Colors.deepOrange.shade100.withAlpha(10),
+                        color: Colors.deepOrange.shade100.withAlpha(10),
+                      ))),
+                ...layout.controls.map((c) => LayoutId(
+                    id: c.id,
+                    child: LayoutControlView(
+                      pointer,
+                      layout.id,
+                      c,
+                      sequencerState,
+                      onMove: () => startMove(c),
+                      onResize: () => startResize(c),
                     ))),
-              ...layout.controls.map((c) => LayoutId(
-                  id: c.id,
-                  child: LayoutControlView(
-                    pointer,
-                    layout.id,
-                    c,
-                    sequencerState,
-                    onMove: () => startMove(c),
-                    onResize: () => startResize(c),
-                  ))),
-              if (resizingNode != null)
-                LayoutId(
-                    id: ResizingNodeIndicatorLayoutId,
-                    child: Container(
-                        decoration: ShapeDecoration(
-                      shape: RoundedRectangleBorder(
-                        side: BorderSide(
-                          color: Colors.deepOrange.withAlpha(128),
-                          width: 4,
-                          style: BorderStyle.solid,
+                if (resizingNode != null)
+                  LayoutId(
+                      id: ResizingNodeIndicatorLayoutId,
+                      child: Container(
+                          decoration: ShapeDecoration(
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(
+                            color: Colors.deepOrange.withAlpha(128),
+                            width: 4,
+                            style: BorderStyle.solid,
+                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(4)),
                         ),
-                        borderRadius: BorderRadius.all(Radius.circular(4)),
-                      ),
-                      color: Colors.deepOrange.shade100.withAlpha(10),
-                    ))),
-            ]);
-      }),
+                        color: Colors.deepOrange.shade100.withAlpha(10),
+                      ))),
+              ]);
+        }),
+      ),
     );
   }
 }
@@ -399,30 +430,48 @@ class ControlsLayoutDelegate extends MultiChildLayoutDelegate {
   final String? resizingControlId;
   final Size? resizingControlSize;
 
-  ControlsLayoutDelegate(this.layout, this.movingControlId, this.movingControlPosition,
-      this.resizingControlId, this.resizingControlSize);
+  ControlsLayoutDelegate(
+      this.layout,
+      this.movingControlId,
+      this.movingControlPosition,
+      this.resizingControlId,
+      this.resizingControlSize);
 
   @override
   void performLayout(Size size) {
     for (var control in layout.controls) {
       var controlSize =
-          Size(control.size.width.toDouble(), control.size.height.toDouble()) * MULTIPLIER + (Offset(control.size.width.toDouble() - 1, control.size.height.toDouble() - 1) * GRID_GAP_SIZE);
+          Size(control.size.width.toDouble(), control.size.height.toDouble()) *
+                  MULTIPLIER +
+              (Offset(control.size.width.toDouble() - 1,
+                      control.size.height.toDouble() - 1) *
+                  GRID_GAP_SIZE);
       layoutChild(control.id, BoxConstraints.tight(controlSize));
       var controlOffset = movingControlId == control.id
           ? movingControlPosition!
-          : Offset(control.position.x.toDouble(), control.position.y.toDouble()) * MULTIPLIER;
+          : Offset(control.position.x.toDouble(),
+                  control.position.y.toDouble()) *
+              MULTIPLIER;
 
-      controlOffset += Offset(control.position.x.toDouble(), control.position.y.toDouble()) * GRID_GAP_SIZE;
+      controlOffset +=
+          Offset(control.position.x.toDouble(), control.position.y.toDouble()) *
+              GRID_GAP_SIZE;
       positionChild(control.id, controlOffset);
       if (movingControlId != null && movingControlId == control.id) {
-        layoutChild(MovingNodeIndicatorLayoutId, BoxConstraints.tight(controlSize));
-        positionChild(MovingNodeIndicatorLayoutId,
-            screenToLayoutPosition(movingControlPosition!) * MULTIPLIER + screenToLayoutPosition(movingControlPosition!) * GRID_GAP_SIZE);
+        layoutChild(
+            MovingNodeIndicatorLayoutId, BoxConstraints.tight(controlSize));
+        positionChild(
+            MovingNodeIndicatorLayoutId,
+            screenToLayoutPosition(movingControlPosition!) * MULTIPLIER +
+                screenToLayoutPosition(movingControlPosition!) * GRID_GAP_SIZE);
       }
       if (resizingControlId != null && resizingControlId == control.id) {
         var size = screenToLayoutSize(resizingControlSize!);
-        layoutChild(ResizingNodeIndicatorLayoutId,
-            BoxConstraints.tight(size * MULTIPLIER + (Offset(size.width.toDouble() - 1, size.height.toDouble() - 1) * GRID_GAP_SIZE)));
+        layoutChild(
+            ResizingNodeIndicatorLayoutId,
+            BoxConstraints.tight(size * MULTIPLIER +
+                (Offset(size.width.toDouble() - 1, size.height.toDouble() - 1) *
+                    GRID_GAP_SIZE)));
         positionChild(ResizingNodeIndicatorLayoutId, controlOffset);
       }
     }
@@ -455,37 +504,53 @@ Size screenToLayoutSize(Size size) {
 class SequencerStateFetcher extends StatefulWidget {
   final Widget Function(BuildContext, Map<int, SequenceState>) builder;
 
-  const SequencerStateFetcher({required this.builder, Key? key}) : super(key: key);
+  const SequencerStateFetcher({required this.builder, Key? key})
+      : super(key: key);
 
   @override
   _SequencerStateFetcherState createState() => _SequencerStateFetcherState();
 }
 
-class _SequencerStateFetcherState extends State<SequencerStateFetcher>
-    with SingleTickerProviderStateMixin {
+class _SequencerStateFetcherState extends State<SequencerStateFetcher> {
   SequencerPointer? _pointer;
+  LayoutPolling? _polling;
   Map<int, SequenceState> sequenceStates = {};
-  Ticker? ticker;
 
   @override
   void initState() {
     super.initState();
-    var sequencerApi = context.read<SequencerApi>();
-    sequencerApi.getSequencerPointer().then((pointer) => setState(() {
-          _pointer = pointer;
-          ticker = this.createTicker((elapsed) {
-            setState(() {
-              sequenceStates = _pointer!.readState();
-            });
-          });
-          ticker!.start();
-        }));
+    context.read<SequencerApi>().getSequencerPointer().then((pointer) {
+      if (!mounted) {
+        pointer?.dispose();
+        return;
+      }
+      setState(() => _pointer = pointer);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final polling = LayoutPollingScope.of(context);
+    if (identical(_polling, polling)) return;
+    _polling?.removeTickListener(_onTick);
+    _polling = polling..addTickListener(_onTick);
+  }
+
+  void _onTick() {
+    final pointer = _pointer;
+    if (pointer == null) return;
+    final next = pointer.readState();
+    if (!const MapEquality<int, SequenceState>()
+        .equals(sequenceStates, next)) {
+      setState(() => sequenceStates = next);
+    }
   }
 
   @override
   void dispose() {
+    _polling?.removeTickListener(_onTick);
     _pointer?.dispose();
-    ticker?.stop(canceled: true);
     super.dispose();
   }
 
